@@ -1,5 +1,5 @@
 {
-  "name": "application-name",
+  "name": "ball_dodge",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -8,5 +8,18 @@
   "dependencies": {
     "express": "3.5.1",
     "ejs": "*"
-  }
+  },
+  "description": "Dodging balls",
+  "main": "app.js",
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/kevinylee1991/node_ball_dodge.git"
+  },
+  "author": "Kevin Lee",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kevinylee1991/node_ball_dodge/issues"
+  },
+  "homepage": "https://github.com/kevinylee1991/node_ball_dodge"
 }
