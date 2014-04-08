@@ -8,7 +8,8 @@
 
 	io.emit('new_player', {name: name});
 
-	var time_start = new Date().getTime();
+	var time_start = 0;
+	// var time_start = new Date().getTime();
 
 	function make_circle(session_id, color) {
         var el= document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -162,12 +163,15 @@
 				var total_distance = Math.sqrt(x_distance+y_distance);
 				if (total_distance < (circles[circle].info.r + 15))
 				{
-					var time_end = new Date().getTime();
-					var total_time = time_end - time_start;
-					if (total_time > 100){
-						$('#score').html('You just scored '+total_time+' points');
-						io.emit('send_score', {score: total_time});
-					}	
+					if (time_start != 0)
+					{
+						var time_end = new Date().getTime();
+						var total_time = time_end - time_start;
+						if (total_time > 100){
+							$('#score').html('You just scored '+total_time+' points');
+							io.emit('send_score', {score: total_time});
+						}
+					}
 					time_start = new Date().getTime();
 				}
 			}
@@ -282,7 +286,7 @@
 		<!-- <circle id='player2' cx='20' cy='20' r='15'></circle> -->
 	</svg>
 	<div id='player_score'>
-		<h2 id='score'></h2>
+		<h2 id='score'>Get hit by a ball to start scoring</h2>
 		<div id='scoreboard'>
 			<h2>Top Scores</h2>
 		</div>
