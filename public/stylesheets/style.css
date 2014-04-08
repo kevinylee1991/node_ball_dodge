@@ -1,0 +1,24 @@
+body {
+  padding: 0px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: #00B7FF;
+}
+
+#svg{
+	border: 2px solid black;
+	width: 1000px;
+	height: 800px;
+}
+
+#scoreboard{
+	display: inline-block;
+	vertical-align: top;
+}
+
+#player_score{
+	display: inline-block;
+	vertical-align: top;
+}

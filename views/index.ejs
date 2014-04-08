@@ -1,0 +1,291 @@
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+	$(document).ready(function(){
+
+	io = io.connect();
+	name = prompt("Please enter your name");
+
+	io.emit('new_player', {name: name});
+
+	var time_start = new Date().getTime();
+
+	function make_circle(session_id, color) {
+        var el= document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+		el.setAttribute('id', session_id);
+		el.setAttribute('r', 15);
+		el.setAttribute('cx', 20);
+		el.setAttribute('cy', 20);
+		el.setAttribute('style', 'fill: '+color);
+		document.getElementById('svg').appendChild(el);
+    };
+
+    function KillerCircle(cx, cy, r, x_velocity, y_velocity, id){ //killer circle constructor
+
+    	var randomNumberBetween = function(min, max){
+			return Math.random()*(max-min+1) + min;
+		}
+
+		this.circle_id = id;
+		this.info = {};
+
+	    this.initialize = function(){ //creates new killer circle out of bounds
+
+	    	var el= document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+	    	
+	    	// var killer_x = 0;
+		    // var killer_y = 0;
+	    	// var loop = true;
+	    	// while(loop)
+	    	// {
+	    	// 	killer_x = randomNumberBetween(-105, 1105);
+		    // 	killer_y = randomNumberBetween(-105, 905);
+
+		    // 	if(killer_x > -15 && killer_x < 1015)
+		    // 	{
+	    	// 		if (killer_y < -15 || killer_y > 815)
+	    	// 		{
+	    	// 			loop = false;
+	    	// 		}
+		    // 	}
+		    // 	else
+		    // 	{
+		    // 		loop = false;
+		    // 	}
+		    // 	if(killer_y > -15 && killer_y < 815)
+		    // 	{
+		    // 		if(killer_x < -15 || killer_x > 1015)
+		    // 		{
+		    // 			loop = false;
+		    // 		}
+		    // 	}
+		    // 	else
+		    // 	{
+		    // 		loop = false;
+		    // 	}
+		    // }
+	    	// var killer_r = randomNumberBetween(15, 30);
+
+	    	el.setAttribute('id', this.circle_id);
+			el.setAttribute('r', r);
+			this.info.r = r;
+			el.setAttribute('cx', cx);
+			this.info.cx = cx;
+			el.setAttribute('cy', cy);
+			this.info.cy = cy;
+
+			// var x_diff = killer_x - 500;
+			// var y_diff = killer_y - 400;
+			// x_diff /= -100;
+			
+			// if (x_diff > 4.5 || x_diff < -4.5)
+			// {
+			// 	x_diff = x_diff/1.3;
+			// }
+			
+			// y_diff /= -100;
+			// if (y_diff > 4.5 || x_diff < -4.5)
+			// {
+			// 	y_diff = y_diff/1.3;
+			// }
+
+			this.info.velocity = {
+				x: x_velocity,
+				y: y_velocity
+			};		
+
+			document.getElementById('svg').appendChild(el);
+	    };
+
+	    this.update = function(){ //update position of circles
+	    	var el = document.getElementById(this.circle_id);
+
+	    	this.info.cx = this.info.cx + this.info.velocity.x;
+			this.info.cy = this.info.cy + this.info.velocity.y;
+
+			el.setAttribute("cx", this.info.cx);
+			el.setAttribute("cy", this.info.cy);
+	    };
+
+	    this.initialize();
+	};
+
+    // function remove_circles(){ //remove circles if they are out of bounds
+    // 	$('svg').children().each(function(){
+    // 		if($(this)[0].attributes.cx.value < -200 || $(this)[0].attributes.cx.value > 1200)
+    // 		{
+    // 			$(this).remove();
+    // 			return;
+    // 		}
+    // 		if($(this)[0].attributes.cy.value < -200 || $(this)[0].attributes.cy.value > 1000)
+    // 		{
+    // 			$(this).remove();
+    // 			return;
+    // 		}
+    // 	});
+    // };
+
+    function PlayGround()
+	{
+		var counter = 0;  //counts the number of circles created
+		var circles = [ ]; //array that will hold all the circles created in the app
+
+		//a loop that updates the circle's position on the screen
+		this.loop = function(){
+			for(circle in circles)
+			{
+				circles[circle].update();
+			}
+			destroy_circle();
+			collision();
+		}
+
+		this.createNewCircle = function(cx, cy, r, x_velocity, y_velocity){
+			var new_circle = new KillerCircle(cx, cy, r, x_velocity, y_velocity, counter++);
+			circles.push(new_circle);
+			// console.log('created a new circle!', new_circle);
+		}
+
+		// function distance(circle1, circle2){
+		// 	x_distance =  Math.pow((circle1.info.cx - circle2.info.cx), 2);
+		// 	y_distance = Math.pow((circle1.info.cy - circle2.info.cy), 2);
+		// 	return Math.sqrt(x_distance+y_distance);
+		// }
+
+		function collision(){
+			var player = document.getElementById('player');
+			var player_cx = player.getAttribute('cx');
+			var player_cy = player.getAttribute('cy');
+			for (circle in circles){
+				var x_distance = Math.pow((circles[circle].info.cx - player_cx), 2);
+				var y_distance = Math.pow((circles[circle].info.cy - player_cy), 2);
+				var total_distance = Math.sqrt(x_distance+y_distance);
+				if (total_distance < (circles[circle].info.r + 15))
+				{
+					var time_end = new Date().getTime();
+					var total_time = time_end - time_start;
+					if (total_time > 100){
+						$('#score').html('You just scored '+total_time+' points');
+						io.emit('send_score', {score: total_time});
+					}	
+					time_start = new Date().getTime();
+				}
+			}
+		}
+
+		function destroy_circle(){
+			for (circle in circles){
+				var jquery_id = '#' + circles[circle].circle_id;
+
+				if(circles[circle].info.cx < -200 || circles[circle].info.cx > 1200)
+				{
+					$(jquery_id).remove();
+					delete circles[circle]; //unsure if this works
+					return;
+				}
+
+				if(circles[circle].info.cy < -200 || circles[circle].info.cy > 1000)
+				{
+					$(jquery_id).remove();
+					delete circles[circle];
+					return;
+				}
+			}
+		}
+	};
+
+	io.on('existing_players', function(data){
+		var player_info = data.players;
+
+		for(var i = 0; i < player_info.length; i++)
+		{
+			make_circle(player_info[i].session_id, 'green');
+			// $('#svg').append("<circle id='"+player_info[i].session_id+
+			// 	"' cx='20' cy='20' r='15'></circle>");
+
+			$('#scoreboard').append("<p>"+player_info[i].name+": "+player_info.high_score+"</p>");
+		};
+		$('#scoreboard').append("<p>"+name+": 0</p>")
+	})
+
+	io.on('added_new_player', function(data){
+		// $('#svg').append("<circle id='"+data.session_id+
+		// 	"' cx='20' cy='20' r='15'></circle>");
+		make_circle(data.session_id, 'green');
+
+		$('#scoreboard').append("<p>"+data.name+": 0</p>");
+	});
+
+	io.on('disconnect_user', function(data){
+		var remove_id = '#' + data.session_id;
+		$(remove_id).remove();
+		var player_info = data.players;
+		$('#scoreboard').html('<h2>Top Scores</h2>');
+		for(var i = 0; i < player_info.length; i++)
+		{
+			$('#scoreboard').append("<p>"+player_info[i].name+": "+player_info[i].high_score+"</p>");
+		};
+	});
+
+	io.on('other_move', function(data){
+		// var circle = document.getElementById(data.session_id);
+		var circle = document.getElementById(data.session_id);
+		circle.setAttribute('cx', data.cx);
+		circle.setAttribute('cy', data.cy);
+	});
+
+	io.on('new_score', function(data){ //refreshes scoreboard
+		var player_info = data.players;
+		// player_info.sort(function(obj1, obj2){
+		// 	return obj1.high_score - obj2.high_score;
+		// });
+		$('#scoreboard').html('<h2>Top Scores</h2>');
+		for(var i = 0; i < player_info.length; i++)
+		{
+			$('#scoreboard').append("<p>"+player_info[i].name+": "+player_info[i].high_score+"</p>");
+		};
+	});
+
+	var playground = new PlayGround();
+	// setInterval(playground.createNewCircle, 125);
+	setInterval(playground.loop, 15);
+
+
+	io.on('new_ball', function(data){
+		playground.createNewCircle(data.cx, data.cy, data.r, data.x_velocity, data.y_velocity);
+	});
+
+});
+	
+</script>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Group Chat</title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <script>
+    $(document).ready(function(){
+	    $('svg').mousemove(function(e){
+	    	var circle = document.getElementById('player');
+	    	circle.setAttribute('cx', e.pageX);
+	    	circle.setAttribute('cy', e.pageY);
+	    	io.emit('moved_mouse', {cx: e.pageX, cy: e.pageY});
+	    });
+	});
+    </script>
+</head>
+<body>
+	<svg id="svg" xmlns="http://www.w3.org/2000/svg">
+		<circle id='player' cx='30%' cy='30%' r='15' style='fill: blue'></circle>
+		<!-- <rect x='25%' y='25%' width='350' height='350' fill-opacity= '0' style='fill: white; stroke-width: 3; stroke:black'></rect> -->
+		<!-- <circle id='player2' cx='20' cy='20' r='15'></circle> -->
+	</svg>
+	<div id='player_score'>
+		<h2 id='score'></h2>
+		<div id='scoreboard'>
+			<h2>Top Scores</h2>
+		</div>
+	</div>
+</body>
+</html>
