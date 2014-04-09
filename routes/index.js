@@ -41,6 +41,66 @@ players = [];
 				}
 			}
 		}
+		req.io.broadcast('player_died', {player_id: req.sessionID});
+	});
+
+	app.io.route('made_new_circle', function(req){
+		var cx = req.data.cx;
+		var cy = req.data.cy;
+		req.io.broadcast('other_new_circle', {cx: cx, cy: cy, player_id: req.sessionID});
+	});
+
+	app.io.route('got_powerup', function(req){
+
+		var killer_x = 0;
+	    var killer_y = 0;
+    	var loop = true;
+    	while(loop)
+    	{
+    		killer_x = randomNumberBetween(-105, 1105);
+	    	killer_y = randomNumberBetween(-105, 905);
+
+	    	if(killer_x > -15 && killer_x < 1015)
+	    	{
+    			if (killer_y < -15 || killer_y > 815)
+    			{
+    				loop = false;
+    			}
+	    	}
+	    	else
+	    	{
+	    		loop = false;
+	    	}
+	    	if(killer_y > -15 && killer_y < 815)
+	    	{
+	    		if(killer_x < -15 || killer_x > 1015)
+	    		{
+	    			loop = false;
+	    		}
+	    	}
+	    	else
+	    	{
+	    		loop = false;
+	    	}
+	    }
+    	var x_diff = killer_x - 500;
+		var y_diff = killer_y - 400;
+		x_diff /= -100;
+		
+		if (x_diff > 4.5 || x_diff < -4.5)
+		{
+			x_diff = x_diff/1.3;
+		}
+		
+		y_diff /= -100;
+		if (y_diff > 4.5 || x_diff < -4.5)
+		{
+			y_diff = y_diff/1.3;
+		}
+
+		x_velocity = randomNumberBetween(x_diff-2,x_diff+2);
+		y_velocity = randomNumberBetween(y_diff-2,y_diff+2);
+		req.io.broadcast('other_powerup', {cx: killer_x, cy: killer_y, x_velocity: x_velocity, y_velocity: y_velocity});
 	});
 
 	function randomNumberBetween(min, max)
@@ -103,5 +163,60 @@ players = [];
 		app.io.broadcast('new_ball', {cx: killer_x, cy: killer_y, r: killer_r, x_velocity: x_velocity, y_velocity: y_velocity});
 	};
 
+	function new_powerup(){
+		var killer_x = 0;
+	    var killer_y = 0;
+    	var loop = true;
+    	while(loop)
+    	{
+    		killer_x = randomNumberBetween(-105, 1105);
+	    	killer_y = randomNumberBetween(-105, 905);
+
+	    	if(killer_x > -15 && killer_x < 1015)
+	    	{
+    			if (killer_y < -15 || killer_y > 815)
+    			{
+    				loop = false;
+    			}
+	    	}
+	    	else
+	    	{
+	    		loop = false;
+	    	}
+	    	if(killer_y > -15 && killer_y < 815)
+	    	{
+	    		if(killer_x < -15 || killer_x > 1015)
+	    		{
+	    			loop = false;
+	    		}
+	    	}
+	    	else
+	    	{
+	    		loop = false;
+	    	}
+	    }
+    	var killer_r = randomNumberBetween(15, 30);
+    	var x_diff = killer_x - 500;
+		var y_diff = killer_y - 400;
+		x_diff /= -100;
+		
+		if (x_diff > 4.5 || x_diff < -4.5)
+		{
+			x_diff = x_diff/1.3;
+		}
+		
+		y_diff /= -100;
+		if (y_diff > 4.5 || x_diff < -4.5)
+		{
+			y_diff = y_diff/1.3;
+		}
+
+		x_velocity = randomNumberBetween(x_diff-2,x_diff+2);
+		y_velocity = randomNumberBetween(y_diff-2,y_diff+2);
+
+		app.io.broadcast('new_powerup', {cx: killer_x, cy: killer_y, r: killer_r, x_velocity: x_velocity, y_velocity: y_velocity});
+	}
+
 	setInterval(new_balls, 125);
+	setInterval(new_powerup, 10000);
 }
