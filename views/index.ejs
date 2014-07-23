@@ -4,13 +4,16 @@
 	$(document).ready(function(){
 
 	io = io.connect();
+	alert("If you cannot see the scoreboard, your screen may be too small");
 	name = prompt("Please enter your name");
-
 	io.emit('new_player', {name: name});
 
 	var time_start = 0;
 	// var time_start = new Date().getTime();
+	var player_circle = [];
+	player_circle[0] = new PlayerCircle(500, 400, 15, 'player', 'blue');
 
+	//for creating other players' circles (their circles are not objects)
 	function make_circle(cx, cy, session_id, color) {
         var el= document.createElementNS('http://www.w3.org/2000/svg', 'circle');
 		el.setAttribute('id', session_id);
@@ -21,7 +24,34 @@
 		document.getElementById('svg').appendChild(el);
     };
 
-    function KillerCircle(cx, cy, r, x_velocity, y_velocity, id, color){ //killer circle constructor
+    //for creating the player's circle as an object & svg element
+    function PlayerCircle(cx, cy, r, id, color){
+
+    	this.circle_id = id;
+		this.info = {};
+
+	    this.initialize = function(){
+
+	    	var el= document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+
+	    	el.setAttribute('id', this.circle_id);
+			el.setAttribute('r', r);
+			this.info.r = r;
+			el.setAttribute('cx', cx);
+			this.info.cx = cx;
+			el.setAttribute('cy', cy);
+			this.info.cy = cy;
+			el.setAttribute('style', "fill: " + color);
+			this.info.color = color;		
+
+			document.getElementById('svg').appendChild(el);
+	    };
+
+	    this.initialize();
+    }
+
+    //constructor to create obstacle circles and powerup circles
+    function KillerCircle(cx, cy, r, x_velocity, y_velocity, id, color, type){
 
     	var randomNumberBetween = function(min, max){
 			return Math.random()*(max-min+1) + min;
@@ -29,6 +59,7 @@
 
 		this.circle_id = id;
 		this.info = {};
+		this.info.powerup = type;
 
 	    this.initialize = function(){ //creates new killer circle out of bounds
 
@@ -65,13 +96,14 @@
 	    this.initialize();
 	};
 
+	//object that holds game logic
     function PlayGround()
 	{
 		var counter = 0;  //counts the number of circles created
 		var circles = [ ]; //array that will hold all the circles created in the app
 		var powerups = [ ];
 
-		//a loop that updates the circle's position on the screen
+		//a loop that updates the circle's position on the screen & does collision checks
 		this.loop = function(){
 			for(circle in circles)
 			{
@@ -89,20 +121,34 @@
 			}
 		}
 
-		this.createNewPowerup = function(cx, cy, r, x_velocity, y_velocity){
-			var new_circle = new KillerCircle(cx, cy, r, x_velocity, y_velocity, counter++, 'yellow');
+		//creates a new powerup at position determined by server
+		this.createNewPowerup = function(cx, cy, r, x_velocity, y_velocity, num){
+			if (num == 1)
+			{
+				var new_circle = new KillerCircle(cx, cy, r, x_velocity, y_velocity, counter++, 'yellow', 'big_ball');
+			}
+			else if (num == 2)
+			{
+				var new_circle = new KillerCircle(cx, cy, r, x_velocity, y_velocity, counter++, 'red', 'reflect');
+			}		
+			else if (num == 3)
+			{
+				var new_circle = new KillerCircle(cx, cy, r, x_velocity, y_velocity, counter++, 'cyan', 'mini');
+			}
 			powerups.push(new_circle);
 		}
 
+		//creates a new obstacle circle at position determined by server
 		this.createNewCircle = function(cx, cy, r, x_velocity, y_velocity){
-			var new_circle = new KillerCircle(cx, cy, r, x_velocity, y_velocity, counter++, 'black');
+			var new_circle = new KillerCircle(cx, cy, r, x_velocity, y_velocity, counter++, 'black', 'killer');
 			circles.push(new_circle);
 			// console.log('created a new circle!', new_circle);
 		}
 
+		//checks collision of player circle with obstacle circles
 		function collision(){
 			var player = document.getElementById('player');
-			if (player != null)
+			if (player != null && player_circle.length > 0)
 			{
 				var player_cx = player.getAttribute('cx');
 				var player_cy = player.getAttribute('cy');
@@ -110,8 +156,8 @@
 					var x_distance = Math.pow((circles[circle].info.cx - player_cx), 2);
 					var y_distance = Math.pow((circles[circle].info.cy - player_cy), 2);
 					var total_distance = Math.sqrt(x_distance+y_distance);
-					if (total_distance < (circles[circle].info.r + 15))
-					{
+					if (total_distance < (circles[circle].info.r + player_circle[0].info.r))
+					{				
 						if (time_start != 0)
 						{
 							var time_end = new Date().getTime();
@@ -120,6 +166,8 @@
 								$('#score').html('You just scored '+total_time+' points');
 								io.emit('send_score', {score: total_time});
 								$('#player').remove();
+								delete player_circle[0];
+								return;
 							}
 						}
 						time_start = new Date().getTime();
@@ -128,6 +176,7 @@
 			}
 		}
 
+		//checks collision of player circle with powerups
 		function got_powerup(){
 			var player = document.getElementById('player');
 			if (player != null)
@@ -141,18 +190,19 @@
 						var y_distance = Math.pow((powerups[powerup].info.cy - player_cy), 2);
 						var total_distance = Math.sqrt(x_distance+y_distance);
 						var jquery_id = '#' + powerups[powerup].circle_id;
-						if (total_distance < (powerups[powerup].info.r + 15))
+						if (total_distance < (powerups[powerup].info.r + player_circle[0].info.r))
 						{
+							var effect = powerups[powerup].info.powerup;
 							$(jquery_id).remove();
 							delete powerups[powerup];
-							console.log('got powerup');
-							io.emit('got_powerup', {});
+							io.emit('got_powerup', {powerup_type: effect, cx: player_cx, cy: player_cy});
 						}
 					}
 				}
 			}
 		}
 
+		//removes powerups from screen after a player picks it up
 		this.removePowerups = function(){
 			for (powerup in powerups){
 				var jquery_id = '#' + powerups[powerup].circle_id;
@@ -161,6 +211,36 @@
 			}
 		}
 
+		//powerup that causes nearby balls to fly away from player
+		this.reflect = function(cx, cy){
+			cx_num = parseInt(cx);
+			cy_num = parseInt(cy);
+			var zone = 250;
+			for (circle in circles){
+				if ( (circles[circle].info.cx > cx_num-zone && circles[circle].info.cx < cx_num) && (circles[circle].info.cy > cy_num-zone && circles[circle].info.cy < cy_num))
+				{
+					circles[circle].info.velocity.x = -3;
+					circles[circle].info.velocity.y = -3;
+				}
+				else if ( (circles[circle].info.cx < cx_num+zone && circles[circle].info.cx > cx_num) && (circles[circle].info.cy > cy_num-zone && circles[circle].info.cy < cy_num))
+				{
+					circles[circle].info.velocity.x = 3;
+					circles[circle].info.velocity.y = -3;
+				}
+				else if ( (circles[circle].info.cx > cx_num-zone && circles[circle].info.cx < cx_num) && (circles[circle].info.cy < cy_num+zone && circles[circle].info.cy > cy_num))
+				{
+					circles[circle].info.velocity.x = -3;
+					circles[circle].info.velocity.y = 3;
+				}
+				else if ( (circles[circle].info.cx < cx_num+zone && circles[circle].info.cx > cx_num) && (circles[circle].info.cy < cy_num+zone && circles[circle].info.cy > cy_num))
+				{
+					circles[circle].info.velocity.x = 3;
+					circles[circle].info.velocity.y = 3;
+				}
+			}
+		}
+
+		//remove circle svg element & object when more than 200 pixels outside of svg
 		function destroy_circle(){
 			for (circle in circles){
 				var jquery_id = '#' + circles[circle].circle_id;
@@ -200,6 +280,7 @@
 		}
 	};
 
+	//load circles of players already in the room as well as scores
 	io.on('existing_players', function(data){
 		var player_info = data.players;
 
@@ -214,6 +295,7 @@
 		$('#scoreboard').append("<p>"+name+": 0</p>")
 	})
 
+	//create new circle and score for new player that enters room
 	io.on('added_new_player', function(data){
 		// $('#svg').append("<circle id='"+data.session_id+
 		// 	"' cx='20' cy='20' r='15'></circle>");
@@ -222,6 +304,7 @@
 		$('#scoreboard').append("<p>"+data.name+": 0</p>");
 	});
 
+	//when another user disconnects, remove their score data and circle
 	io.on('disconnect_user', function(data){
 		var remove_id = '#' + data.session_id;
 		$(remove_id).remove();
@@ -233,11 +316,13 @@
 		};
 	});
 
+	//when another user dies, remove their circle
 	io.on('player_died', function(data){
 		var jquery_id = "#"+data.player_id;
 		$(jquery_id).remove(); 
 	});
 
+	//when another user moves, move their circle on player's screen
 	io.on('other_move', function(data){
 		// var circle = document.getElementById(data.session_id);
 		var circle = document.getElementById(data.session_id);
@@ -245,6 +330,7 @@
 		circle.setAttribute('cy', data.cy);
 	});
 
+	//when a user gets a high score, update scoreboard
 	io.on('new_score', function(data){ //refreshes scoreboard
 		var player_info = data.players;
 		// player_info.sort(function(obj1, obj2){
@@ -260,30 +346,52 @@
 	var playground = new PlayGround();
 	setInterval(playground.loop, 15);
 
-
+	//on receiving coordinates for circle obstacle, create it
 	io.on('new_ball', function(data){
 		playground.createNewCircle(data.cx, data.cy, data.r, data.x_velocity, data.y_velocity);
 	});
-
+	//on receiving coordinates for powerup, create it
 	io.on('new_powerup', function(data){
-		playground.createNewPowerup(data.cx, data.cy, data.r, data.x_velocity, data.y_velocity);
+		playground.createNewPowerup(data.cx, data.cy, data.r, data.x_velocity, data.y_velocity, data.num);
 	});
-
+	//on an opponent receiving a sabotage powerup
 	io.on('other_powerup', function(data){
 		playground.removePowerups();
-		playground.createNewCircle(data.cx, data.cy, 200, data.x_velocity, data.y_velocity);
+		if(data.powerup_type == 'big_ball')
+		{
+			playground.createNewCircle(data.cx, data.cy, 200, data.x_velocity, data.y_velocity);
+		}
 	});
-
+	//on an opponent receiving a global powerup
+	io.on('global_powerup', function(data){
+		playground.removePowerups();
+		if(data.powerup_type == 'reflect')
+		{
+			playground.reflect(data.cx, data.cy);
+		}
+		else if(data.powerup_type == 'mini')
+		{
+			var circle = document.getElementById(data.player_id);
+			circle.setAttribute('r', 10);
+			if(data.player_id == 'player' && player_circle.length > 0)
+			{
+				player_circle[0].info.r = 10;
+			}
+		}
+	})
+	//click on screen to create a new player circle when dead
 	$('svg').click(function(e){
 		var circle = document.getElementById('player');
 		if(circle == null)
 		{
 			time_start = new Date().getTime();
-			make_circle(e.pageX, e.pageY, 'player', 'blue');
+			var new_circle = new PlayerCircle(e.pageX, e.pageY, 15, 'player', 'blue');
+			player_circle[0] = new_circle;
+			// make_circle(e.pageX, e.pageY, 'player', 'blue');
 			io.emit('made_new_circle', {cx: e.pageX, cy: e.pageY});
 		}
 	});
-
+	//when another character that was dead re-enters the game, create their circle
 	io.on('other_new_circle', function(data){
 		var circle = document.getElementById(data.player_id);
 		if (circle == null)
@@ -303,6 +411,7 @@
     <link rel='stylesheet' href='/stylesheets/style.css' />
     <script>
     $(document).ready(function(){
+    	//on moving mouse, have player's circle move with mouse
 	    $('svg').mousemove(function(e){
 	    	var circle = document.getElementById('player');
 	    	if(circle != null)
@@ -317,11 +426,15 @@
 </head>
 <body>
 	<svg id="svg" xmlns="http://www.w3.org/2000/svg">
-		<circle id='player' cx='30%' cy='30%' r='15' style='fill: blue'></circle>
+		<!-- <circle id='player' cx='30%' cy='30%' r='15' style='fill: blue'></circle> -->
 	</svg>
 	<div id='player_score'>
 		<h2 id='score'>Get hit by a ball to start scoring</h2>
 		<p>Click anywhere to create a new ball when dead</p>
+		<p><b>Powerup key:</b></p>
+		<p><span style="color: yellow">Yellow: </span>Creates a large ball to sabotage other players</p>
+		<p><span style="color: red">Red: </span>Reflects nearby balls away from you</p>
+		<p><span style="color: cyan">Cyan: </span>Makes your ball smaller</p>
 		<div id='scoreboard'>
 			<h2>Top Scores</h2>
 		</div>
